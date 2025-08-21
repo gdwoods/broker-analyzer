@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+polars
+pyarrow
+supabase==2.*
+redis
+rq
