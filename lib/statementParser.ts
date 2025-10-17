@@ -1223,9 +1223,6 @@ function extractBuySell(row: Record<string, unknown>): string {
 }
 
 function extractPrice(row: Record<string, unknown>): number {
-  // Counter to limit logging
-  static priceCount = 0;
-  
   // Get Column F (index 5) - Price
   const columnNames = Object.keys(row);
   if (columnNames.length > 5) {
