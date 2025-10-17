@@ -386,6 +386,7 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   }
   
   console.log('🔍 DEBUG: Comprehensive search completed successfully');
+  console.log('🔍 DEBUG: About to start first pass loop...');
   console.log('🔍 STARTING FIRST PASS PROCESSING...');
   
   let rowIndex = 0;
@@ -394,9 +395,15 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   let rowsWithBal = 0;
   
   try {
+    console.log('🔍 DEBUG: Starting first pass loop iteration...');
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
       rowIndex = i; // Set rowIndex to match array position
+      
+      // Debug: Log first few iterations
+      if (i < 5) {
+        console.log(`🔍 FIRST PASS ROW ${i}: Processing row...`);
+      }
       
       // DEBUG: Log progress every 100 rows and target rows
       if (i < 3 || i % 100 === 0 || i === 325 || i === 326 || i === 1064) {
@@ -487,6 +494,7 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   }
   
   console.log(`📊 First-pass loop complete. Processed ${rowIndex} rows out of ${rawData.length} total rows`);
+  console.log('🔍 DEBUG: First pass completed successfully');
   console.log(`📊 Rows with % in description: ${rowsWithPercent}, with DAYS: ${rowsWithDays}, with BAL: ${rowsWithBal}`);
   console.log(`📊 Total rows with symbols found: ${symbolRowsFound}`);
   console.log(`📊 Interest rows checked: ${interestRowsChecked}, Interest found: ${interestRowsFound}`);
