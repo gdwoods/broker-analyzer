@@ -722,22 +722,35 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         let targetDate = finalDate;
         
         if (transactionType === 'overnight' || transactionType === 'locate' || transactionType === 'marketData' || transactionType === 'interest') {
-          // For fees, find the most recent trading date for this symbol that's before or on the fee date
+          // For fees, find the most recent trading date for this symbol within a few days of the fee date
+          // Fees typically appear 1-3 days after the actual trade
           const symbolTrades = Array.from(tradingData.keys())
             .filter(key => key.startsWith(`${symbol}-`))
             .map(key => ({
               key,
               date: key.split('-')[1]
             }))
-            .filter(trade => trade.date <= finalDate) // Only trades on or before the fee date
             .sort((a, b) => b.date.localeCompare(a.date)); // Sort descending (most recent first)
           
-          if (symbolTrades.length > 0) {
-            const mostRecentTrade = symbolTrades[0];
-            targetDate = mostRecentTrade.date;
-            console.log(`📊 Matching fee for ${symbol} to most recent trade: ${targetDate} (fee date was ${finalDate})`);
+          // Look for trades within 5 days before the fee date
+          let matchedTrade = null;
+          for (const trade of symbolTrades) {
+            const tradeDate = new Date(trade.date);
+            const feeDate = new Date(finalDate);
+            const daysDiff = Math.floor((feeDate.getTime() - tradeDate.getTime()) / (24 * 60 * 60 * 1000));
+            
+            if (daysDiff >= 0 && daysDiff <= 5) {
+              matchedTrade = trade;
+              break;
+            }
+          }
+          
+          if (matchedTrade) {
+            targetDate = matchedTrade.date;
+            console.log(`📊 Matching fee for ${symbol} to trade: ${targetDate} (fee date was ${finalDate})`);
           } else {
-            console.log(`⚠️ No prior trade found for ${symbol} fee on ${finalDate}, using fee date`);
+            // No matching trade found - use the fee date from description (for fees before spreadsheet start)
+            console.log(`⚠️ No matching trade found for ${symbol} fee on ${finalDate}, using fee date from description`);
           }
         }
         
