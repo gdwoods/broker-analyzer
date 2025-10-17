@@ -1359,10 +1359,18 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     
     let totalPnL = 0;
     
+    // Debug: Log all trades for this symbol
+    console.log(`🔍 BLNE Trades Debug: Found ${trades.length} trades for ${symbol}`);
+    for (const trade of trades) {
+      console.log(`  Trade: ${trade.date} | Qty: ${trade.quantity} | Price: $${trade.price} | Amount: $${trade.amount}`);
+    }
+    
     // Simple P&L calculation: sum of all amounts (sells are positive, buys are negative)
     for (const trade of trades) {
       totalPnL += trade.amount;
     }
+    
+    console.log(`  Total P&L calculated: $${totalPnL.toFixed(2)}`);
     
     // Find ALL positions for this symbol and assign P&L to the trading transaction
     const symbolPositions = positions.filter(p => p.symbol === symbol);
