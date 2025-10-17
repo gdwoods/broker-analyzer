@@ -373,7 +373,10 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         const description = extractDescription(row);
         if (description && (description.includes('BORROW') || description.includes('STOCK BORROW FEE'))) {
           borrowFeeCount++;
-          console.log(`🔍 FOUND BORROW FEE ROW ${borrowFeeCount}: "${description}" | Amount: ${row['Amount']} | Type: ${row['Type']}`);
+          // Only log first 5 and every 100th to avoid memory issues
+          if (borrowFeeCount <= 5 || borrowFeeCount % 100 === 0) {
+            console.log(`🔍 FOUND BORROW FEE ROW ${borrowFeeCount}: "${description}" | Amount: ${row['Amount']} | Type: ${row['Type']}`);
+          }
         }
       } catch (rowError) {
         console.error(`❌ ERROR processing row ${i}:`, rowError);
