@@ -1011,9 +1011,8 @@ function extractDate(row: Record<string, unknown>): string | null {
         // Excel serial date to JavaScript date conversion
         // Excel epoch is January 1, 1900, JavaScript epoch is January 1, 1970
         // Excel has a bug where it considers 1900 a leap year, so we need to adjust
-        // Based on user data, dates appear to be 366 days (1 year) ahead, so subtract 366
         const excelEpoch = new Date(1900, 0, 1);
-        const jsDate = new Date(excelEpoch.getTime() + (numValue - 2 - 366) * 24 * 60 * 60 * 1000);
+        const jsDate = new Date(excelEpoch.getTime() + (numValue - 2) * 24 * 60 * 60 * 1000);
         if (!isNaN(jsDate.getTime())) {
           return jsDate.toISOString().split('T')[0];
         }
