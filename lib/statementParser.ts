@@ -1340,11 +1340,22 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     const price = extractPrice(row);
     const date = extractDate(row) || '';
     
+    // Debug BLNE specifically - check why it might be filtered out
+    if (symbol === 'BLNE') {
+      console.log(`🐍 BLNE DEBUG: Processing row with description: "${description}"`);
+      console.log(`🐍 BLNE DEBUG: Symbol: ${symbol}, Qty: ${quantity}, Price: $${price}, Date: ${date}`);
+    }
+    
     // Get the Amount column (transaction value)
     const cols = Object.keys(row);
     const amountColumn = cols.length > 13 ? cols[13] : '';
     const amountStr = String(row[amountColumn] || '').replace(/[^0-9.-]/g, '');
     const amount = parseFloat(amountStr);
+    
+    // Debug BLNE specifically - check amount extraction
+    if (symbol === 'BLNE') {
+      console.log(`🐍 BLNE DEBUG: Amount column: ${amountColumn}, Amount string: "${amountStr}", Amount parsed: ${amount}`);
+    }
 
     if (symbol && quantity !== 0 && !isNaN(amount)) {
       if (!tradesBySymbol.has(symbol)) {
