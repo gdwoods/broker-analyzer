@@ -692,15 +692,9 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         }
         
         // For fee transactions (borrow fees, market data, etc.), negative amounts are normal
-        // Only skip if amount is exactly zero or if it's a trading transaction with negative amount
-        if (amount === 0 || (transactionType === 'trading' && amount < 0)) {
-          console.log(`⚠️ Skipping row with zero amount or negative trading amount: ${amount} for ${symbol}`);
-          if (transactionType === 'marketData') {
-            console.log(`   Market Data transaction skipped! Raw data:`, row);
-          }
-          if (transactionType === 'locate') {
-            console.log(`   Locate fee transaction skipped! Raw data:`, row);
-          }
+        // Only skip if amount is exactly zero
+        if (amount === 0) {
+          console.log(`⚠️ Skipping row with zero amount: ${amount} for ${symbol}`);
           continue;
         }
         
