@@ -965,13 +965,20 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
 }
 
 function extractSymbol(row: Record<string, unknown>): string {
+  // Counter to limit logging
+  static symbolCount = 0;
+  
   // Prioritize Column D (index 3) as per user feedback
   const columnNames = Object.keys(row);
   if (columnNames.length > 3) {
     const columnDKey = columnNames[3];
     const value = String(row[columnDKey]).trim();
     if (/^[A-Z]{1,5}[0-9]?$/.test(value)) {
-      console.log(`✅ Found symbol in Column D (${columnDKey}): ${value}`);
+      // Only log first 10 symbols to avoid memory issues
+      if (symbolCount < 10) {
+        console.log(`✅ Found symbol in Column D (${columnDKey}): ${value}`);
+        symbolCount++;
+      }
       return value;
     }
   }
@@ -1122,6 +1129,9 @@ function extractPnL(_row: Record<string, unknown>): number {
 }
 
 function extractQuantity(row: Record<string, unknown>): number {
+  // Counter to limit logging
+  static quantityCount = 0;
+  
   // Prioritize Column C (index 2) - Quantities
   const columnNames = Object.keys(row);
   if (columnNames.length > 2) {
@@ -1129,7 +1139,11 @@ function extractQuantity(row: Record<string, unknown>): number {
     const value = String(row[columnC] || '').replace(/[^0-9.-]/g, '');
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) {
-      console.log(`✅ Found quantity in Column C (${columnC}): ${num}`);
+      // Only log first 10 quantities to avoid memory issues
+      if (quantityCount < 10) {
+        console.log(`✅ Found quantity in Column C (${columnC}): ${num}`);
+        quantityCount++;
+      }
       return num;
     }
   }
@@ -1160,7 +1174,11 @@ function extractValue(row: Record<string, unknown>): number {
     const value = String(row[columnF] || '').replace(/[^0-9.-]/g, '');
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) {
-      console.log(`✅ Found price in Column F (${columnF}): ${num}`);
+      // Only log first 10 prices to avoid memory issues
+      if (priceCount < 10) {
+        console.log(`✅ Found price in Column F (${columnF}): ${num}`);
+        priceCount++;
+      }
       return Math.abs(num);
     }
   }
@@ -1195,6 +1213,9 @@ function extractBuySell(row: Record<string, unknown>): string {
 }
 
 function extractPrice(row: Record<string, unknown>): number {
+  // Counter to limit logging
+  static priceCount = 0;
+  
   // Get Column F (index 5) - Price
   const columnNames = Object.keys(row);
   if (columnNames.length > 5) {
