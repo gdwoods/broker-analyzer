@@ -785,15 +785,19 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           switch (transactionType) {
             case 'overnight':
               positions[existingIndex].overnightFee += feeAmount;
+              console.log(`🔍 ADDING OVERNIGHT FEE: ${symbol} += $${feeAmount} (total now: $${positions[existingIndex].overnightFee})`);
               break;
             case 'locate':
               positions[existingIndex].locateCost += feeAmount;
+              console.log(`🔍 ADDING LOCATE FEE: ${symbol} += $${feeAmount} (total now: $${positions[existingIndex].locateCost})`);
               break;
             case 'marketData':
               positions[existingIndex].marketDataFee += feeAmount;
+              console.log(`🔍 ADDING MARKET DATA FEE: ${symbol} += $${feeAmount} (total now: $${positions[existingIndex].marketDataFee})`);
               break;
             case 'interest':
               positions[existingIndex].interestFee += feeAmount;
+              console.log(`🔍 ADDING INTEREST FEE: ${symbol} += $${feeAmount} (total now: $${positions[existingIndex].interestFee})`);
               break;
             case 'trading':
               // For trading transactions, we don't add to fees, but we update P&L
@@ -833,7 +837,7 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           // Create new position
           // Use absolute value for fees since they're typically negative amounts (debits)
           const feeAmount = Math.abs(amount);
-          positions.push({
+          const newPosition = {
             symbol,
             date: targetDate,
             quantity: tradingInfo.quantity,
@@ -851,7 +855,20 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
             transactionType,
             buySell: transactionType === 'trading' ? extractBuySell(row) : undefined,
             price: transactionType === 'trading' ? extractPrice(row) : undefined,
-          });
+          };
+          positions.push(newPosition);
+          
+          // Debug logging for fee creation
+          if (transactionType === 'overnight') {
+            console.log(`🔍 CREATED NEW OVERNIGHT FEE POSITION: ${symbol} = $${feeAmount}`);
+          } else if (transactionType === 'locate') {
+            console.log(`🔍 CREATED NEW LOCATE FEE POSITION: ${symbol} = $${feeAmount}`);
+          } else if (transactionType === 'marketData') {
+            console.log(`🔍 CREATED NEW MARKET DATA FEE POSITION: ${symbol} = $${feeAmount}`);
+          } else if (transactionType === 'interest') {
+            console.log(`🔍 CREATED NEW INTEREST FEE POSITION: ${symbol} = $${feeAmount}`);
+          }
+          
           console.log(`   ✅ Created new position ${symbol} with P&L: ${tradingInfo.pnl}`);
         }
   }
