@@ -327,6 +327,10 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   let symbolRowsFound = 0;
   let interestRowsChecked = 0;
   let interestRowsFound = 0;
+  let rowIndex = 0;
+  let rowsWithPercent = 0;
+  let rowsWithDays = 0;
+  let rowsWithBal = 0;
   
   // Debug: Check ALL rows for % in ANY column AND for "INTEREST" in description
   console.log('🔍 CHECKING FOR % CHARACTER AND "INTEREST" IN DESCRIPTION (all rows):');
@@ -388,12 +392,6 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   console.log('🔍 DEBUG: Comprehensive search completed successfully');
   console.log('🔍 DEBUG: About to start first pass loop...');
   console.log('🔍 DEBUG: Setting up first pass variables...');
-  
-  let rowIndex = 0;
-  let rowsWithPercent = 0;
-  let rowsWithDays = 0;
-  let rowsWithBal = 0;
-  
   console.log('🔍 DEBUG: First pass variables initialized');
   console.log('🔍 STARTING FIRST PASS PROCESSING...');
   
