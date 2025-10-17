@@ -1066,8 +1066,9 @@ function extractSymbolFromDescription(description: string): string {
 }
 
 function extractDateFromDescription(description: string): string | null {
-  // Format: "10/13 C STOCK BORROW FEE GV" or "10/10 STOCK BORROW FEE QMMM"
-  // Date is at the beginning
+  // Format: "12/31 STOCK BORROW FEE INTZ" - date is at the beginning
+  // For borrow fees, the embedded date is typically from the previous year
+  // (e.g., 12/31 fees posted on 1/2/25 should be 12/31/24)
   const parts = description.trim().split(/\s+/);
   const firstPart = parts[0];
   
@@ -1076,13 +1077,9 @@ function extractDateFromDescription(description: string): string | null {
     const [month, day] = firstPart.split('/');
     const currentYear = new Date().getFullYear();
     
-    // Try to determine the year (assume current year or previous year)
-    const date = new Date(currentYear, parseInt(month) - 1, parseInt(day));
-    
-    // If the date is in the future, assume it's from the previous year
-    if (date > new Date()) {
-      date.setFullYear(currentYear - 1);
-    }
+    // For borrow fees, assume the embedded date is from the previous year
+    // This handles cases like "12/31" in descriptions posted in January
+    const date = new Date(currentYear - 1, parseInt(month) - 1, parseInt(day));
     
     return date.toISOString().split('T')[0];
   }
