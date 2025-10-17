@@ -611,9 +611,18 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           console.log(`🔍 TRANSACTION ${rowIndex}: "${description}" | Amount: ${row['Amount']} | Type: ${row['Type']}`);
         }
         
+        // Check if this row has trading activity (quantity and price) - this takes priority
+        const quantity = extractQuantity(row);
+        const price = extractPrice(row);
+        const hasTradingActivity = quantity !== 0 && price > 0;
+        
         if (description.includes('MARK TO MARKET')) {
           // Ignore Mark To Market transactions
           continue;
+        } else if (hasTradingActivity) {
+          // If row has quantity and price, it's a trading transaction regardless of other indicators
+          transactionType = 'trading';
+          console.log(`🔍 TRADING TRANSACTION DETECTED (has quantity ${quantity} and price $${price}): "${description}"`);
         } else if (isInterestTransaction) {
           // Interest transactions have format like "2.50000%16 DAYS,BAL=   $32583" in description
           transactionType = 'interest';
