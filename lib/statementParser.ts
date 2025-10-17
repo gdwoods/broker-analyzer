@@ -1,6 +1,10 @@
 import type { StatementData, BorrowPosition, FeeSummary } from "@/app/page";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+// Limit noisy logging during first pass to avoid memory issues
+let logSymbolCount = 0;
+let logQuantityCount = 0;
+let logPriceCount = 0;
 
 export async function parseStatement(file: File): Promise<StatementData> {
   const fileType = file.name.split('.').pop()?.toLowerCase();
@@ -978,8 +982,6 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
 }
 
 function extractSymbol(row: Record<string, unknown>): string {
-  // Counter to limit logging
-  static symbolCount = 0;
   
   // Prioritize Column D (index 3) as per user feedback
   const columnNames = Object.keys(row);
@@ -988,9 +990,9 @@ function extractSymbol(row: Record<string, unknown>): string {
     const value = String(row[columnDKey]).trim();
     if (/^[A-Z]{1,5}[0-9]?$/.test(value)) {
       // Only log first 10 symbols to avoid memory issues
-      if (symbolCount < 10) {
+      if (logSymbolCount < 10) {
         console.log(`✅ Found symbol in Column D (${columnDKey}): ${value}`);
-        symbolCount++;
+        logSymbolCount++;
       }
       return value;
     }
@@ -1139,8 +1141,6 @@ function extractPnL(_row: Record<string, unknown>): number {
 }
 
 function extractQuantity(row: Record<string, unknown>): number {
-  // Counter to limit logging
-  static quantityCount = 0;
   
   // Prioritize Column C (index 2) - Quantities
   const columnNames = Object.keys(row);
@@ -1150,9 +1150,9 @@ function extractQuantity(row: Record<string, unknown>): number {
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) {
       // Only log first 10 quantities to avoid memory issues
-      if (quantityCount < 10) {
+      if (logQuantityCount < 10) {
         console.log(`✅ Found quantity in Column C (${columnC}): ${num}`);
-        quantityCount++;
+        logQuantityCount++;
       }
       return num;
     }
@@ -1185,9 +1185,9 @@ function extractValue(row: Record<string, unknown>): number {
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) {
       // Only log first 10 prices to avoid memory issues
-      if (priceCount < 10) {
+      if (logPriceCount < 10) {
         console.log(`✅ Found price in Column F (${columnF}): ${num}`);
-        priceCount++;
+        logPriceCount++;
       }
       return Math.abs(num);
     }
