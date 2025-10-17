@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 let logSymbolCount = 0;
 let logQuantityCount = 0;
 let logPriceCount = 0;
+const DEBUG_VERBOSE = false; // flip to true when deep debugging
 
 export async function parseStatement(file: File): Promise<StatementData> {
   const fileType = file.name.split('.').pop()?.toLowerCase();
@@ -257,8 +258,10 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
 
   // Debug: Comprehensive analysis of the statement
   if (rawData.length > 0) {
-    console.log('📊 Available columns in your file:', Object.keys(rawData[0]));
-    console.log('📝 First 10 rows sample:', rawData.slice(0, 10));
+    if (DEBUG_VERBOSE) {
+      console.log('📊 Available columns in your file:', Object.keys(rawData[0]));
+      console.log('📝 First 10 rows sample:', rawData.slice(0, 10));
+    }
     
     // Comprehensive column analysis
     const sampleRow = rawData[0];
@@ -513,12 +516,14 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   console.log(`💰 Total rows with P&L data: ${pnlRowsFound}`);
   
   // Show sample of trading data found
-  console.log('🔍 Sample trading data entries:');
-  let count = 0;
-  for (const [key, data] of tradingData.entries()) {
-    if (count < 5) {
-      console.log(`  ${key}: P&L=${data.pnl}, Qty=${data.quantity}, Value=${data.value}`);
-      count++;
+  if (DEBUG_VERBOSE) {
+    console.log('🔍 Sample trading data entries:');
+    let count = 0;
+    for (const [key, data] of tradingData.entries()) {
+      if (count < 5) {
+        console.log(`  ${key}: P&L=${data.pnl}, Qty=${data.quantity}, Value=${data.value}`);
+        count++;
+      }
     }
   }
   
@@ -1293,7 +1298,7 @@ function extractMiscFees(row: Record<string, unknown>): number {
 }
 
 function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<string, unknown>[]): void {
-  console.log('💰 Calculating P&L from buy/sell pairs...');
+  if (DEBUG_VERBOSE) console.log('💰 Calculating P&L from buy/sell pairs...');
   
   // Group all trading transactions by symbol
   const tradesBySymbol = new Map<string, Array<{
@@ -1359,18 +1364,27 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     
     let totalPnL = 0;
     
-    // Debug: Log all trades for this symbol
-    console.log(`🔍 BLNE Trades Debug: Found ${trades.length} trades for ${symbol}`);
-    for (const trade of trades) {
-      console.log(`  Trade: ${trade.date} | Qty: ${trade.quantity} | Price: $${trade.price} | Amount: $${trade.amount}`);
+    // Optional debug of trades per symbol
+    if (DEBUG_VERBOSE) {
+      console.log(`🔍 Trades Debug: Found ${trades.length} trades for ${symbol}`);
+      for (const trade of trades) {
+        console.log(`  Trade: ${trade.date} | Qty: ${trade.quantity} | Price: $${trade.price} | Amount: $${trade.amount}`);
+      }
     }
-    
-    // Simple P&L calculation: sum of all amounts (sells are positive, buys are negative)
+
+    // Calculate P&L by walking trades and summing amounts within each flat-to-flat cycle
+    // A cycle begins when netPosition moves away from 0 and ends when it returns to 0.
+    let netPosition = 0;
+    let cyclePnL = 0;
+    totalPnL = 0;
     for (const trade of trades) {
-      totalPnL += trade.amount;
+      netPosition += trade.quantity;
+      cyclePnL += trade.amount; // amounts already signed by broker export
+      if (netPosition === 0) {
+        totalPnL += cyclePnL;
+        cyclePnL = 0;
+      }
     }
-    
-    console.log(`  Total P&L calculated: $${totalPnL.toFixed(2)}`);
     
     // Find ALL positions for this symbol and assign P&L to the trading transaction
     const symbolPositions = positions.filter(p => p.symbol === symbol);
