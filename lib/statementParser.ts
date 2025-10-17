@@ -389,6 +389,8 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
   }
   
+  console.log('🔍 DEBUG: Comprehensive search try-catch block completed');
+  
   console.log('🔍 DEBUG: Comprehensive search completed successfully');
   console.log('🔍 DEBUG: About to start first pass loop...');
   console.log('🔍 DEBUG: Setting up first pass variables...');
