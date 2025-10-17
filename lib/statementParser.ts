@@ -560,6 +560,11 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         if (description && description.includes('STOCK BORROW FEE')) {
           console.log(`🔍 SECOND PASS BORROW FEE: "${description}" | Type: ${row['Type']} | Amount: ${row['Amount']}`);
           borrowFeeRowsFound++;
+          
+          // Debug: Show first 10 and every 50th borrow fee for tracking
+          if (borrowFeeRowsFound <= 10 || borrowFeeRowsFound % 50 === 0) {
+            console.log(`🔍 BORROW FEE #${borrowFeeRowsFound}: Processing "${description}" with amount ${row['Amount']}`);
+          }
         }
     
     // Skip all rows where Type (Column O, index 14) = "Cash", EXCEPT interest transactions
@@ -923,7 +928,18 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   
   console.log('🔍 SECOND PASS COMPLETED - All borrow fee processing finished');
   console.log(`🔍 BORROW FEE SUMMARY: ${borrowFeeRowsFound} borrow fee transactions found in second pass`);
+  console.log(`🔍 PROCESSING SUMMARY: Processed ${rawData.length} total rows in second pass`);
   console.log(`🔍 FINAL RESULT: ${positions.length} positions created`);
+  
+  // Debug: Show breakdown of position types
+  const locatePositions = positions.filter(p => p.locateCost > 0);
+  const overnightPositions = positions.filter(p => p.overnightFee > 0);
+  const marketDataPositions = positions.filter(p => p.marketDataFee > 0);
+  
+  console.log(`🔍 POSITION BREAKDOWN:`);
+  console.log(`   - Positions with locate fees: ${locatePositions.length}`);
+  console.log(`   - Positions with overnight fees: ${overnightPositions.length}`);
+  console.log(`   - Positions with market data fees: ${marketDataPositions.length}`);
   
   // Extract period from filename or data
   const period = extractPeriod(fileName);
