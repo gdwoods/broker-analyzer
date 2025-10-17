@@ -374,15 +374,15 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
       } catch (rowError) {
         console.error(`❌ ERROR processing row ${i}:`, rowError);
         console.error('Row data:', rawData[i]);
-        console.error('Error details:', rowError.message);
+        console.error('Error details:', rowError instanceof Error ? rowError.message : String(rowError));
         // Continue processing other rows
       }
     }
     console.log(`📊 Total borrow fee transactions found: ${borrowFeeCount}`);
   } catch (error) {
     console.error('❌ ERROR in comprehensive borrow fee search:', error);
-    console.error('Error details:', error.message);
-    console.error('Stack trace:', error.stack);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
   }
   
   console.log('🔍 DEBUG: Comprehensive search completed successfully');
@@ -490,7 +490,7 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
     } // Close the for loop
   } catch (error) {
     console.error(`❌ ERROR in first-pass loop at row ${rowIndex}:`, error);
-    console.error('Stack trace:', error.stack);
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
   }
   
   console.log(`📊 First-pass loop complete. Processed ${rowIndex} rows out of ${rawData.length} total rows`);
@@ -1094,6 +1094,8 @@ function extractAmount(row: Record<string, unknown>): number {
 function extractPnL(_row: Record<string, unknown>): number {
   // P&L will be calculated from matched buy/sell pairs, not from individual transactions
   // Individual transactions just show the transaction value (shares × price), not profit
+  // Using _row parameter to avoid ESLint warning
+  void _row; // Explicitly mark as used
   return 0;
 }
 

@@ -100,7 +100,7 @@ export default function FeeAnalysisDashboard({ statement, filteredPositions }: F
   const filteredTotalInterestFees = filteredPositions ? 
     filteredPositions.reduce((sum, p) => sum + p.interestFee, 0) : statement.totalInterestFees;
   const filteredTotalMarketDataFees = filteredPositions ? 
-    filteredPositions.reduce((sum, p) => sum + p.marketDataFee, 0) : statement.marketDataFee;
+    filteredPositions.reduce((sum, p) => sum + p.marketDataFee, 0) : statement.totalMarketDataFees;
 
   return (
     <div className="space-y-6">
