@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 let logSymbolCount = 0;
 let logQuantityCount = 0;
 let logPriceCount = 0;
-const DEBUG_VERBOSE = true; // flip to true when deep debugging
+const DEBUG_VERBOSE = false; // flip to true when deep debugging
 
 export async function parseStatement(file: File): Promise<StatementData> {
   const fileType = file.name.split('.').pop()?.toLowerCase();
