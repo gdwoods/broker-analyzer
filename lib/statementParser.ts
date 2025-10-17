@@ -1346,7 +1346,7 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     const amountStr = String(row[amountColumn] || '').replace(/[^0-9.-]/g, '');
     const amount = parseFloat(amountStr);
 
-    if (symbol && quantity !== 0 && price > 0 && !isNaN(amount)) {
+    if (symbol && quantity !== 0 && !isNaN(amount)) {
       if (!tradesBySymbol.has(symbol)) {
         tradesBySymbol.set(symbol, []);
       }
