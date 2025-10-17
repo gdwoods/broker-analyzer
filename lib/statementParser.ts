@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 let logSymbolCount = 0;
 let logQuantityCount = 0;
 let logPriceCount = 0;
-const DEBUG_VERBOSE = false; // flip to true when deep debugging
+const DEBUG_VERBOSE = true; // flip to true when deep debugging
 
 export async function parseStatement(file: File): Promise<StatementData> {
   const fileType = file.name.split('.').pop()?.toLowerCase();
@@ -1357,6 +1357,11 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
         price,
         amount
       });
+      
+      // Debug BLNE specifically
+      if (symbol === 'BLNE') {
+        console.log(`🐍 BLNE TRADE FOUND: ${date} | ${buySell} | Qty: ${quantity} | Price: $${price} | Amount: $${amount}`);
+      }
     }
   }
 
@@ -1380,13 +1385,31 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     let netPosition = 0;
     let cyclePnL = 0;
     totalPnL = 0;
+    
+    if (symbol === 'BLNE') {
+      console.log(`🐍 BLNE P&L CALCULATION - Processing ${trades.length} trades:`);
+    }
+    
     for (const trade of trades) {
+      const oldNetPosition = netPosition;
       netPosition += trade.quantity;
       cyclePnL += trade.amount; // amounts already signed by broker export
+      
+      if (symbol === 'BLNE') {
+        console.log(`🐍   ${trade.date} | Qty: ${trade.quantity} | Amount: $${trade.amount} | NetPos: ${oldNetPosition} → ${netPosition} | CyclePnL: $${cyclePnL}`);
+      }
+      
       if (netPosition === 0) {
         totalPnL += cyclePnL;
+        if (symbol === 'BLNE') {
+          console.log(`🐍   CYCLE COMPLETE! Adding $${cyclePnL} to total P&L. New total: $${totalPnL}`);
+        }
         cyclePnL = 0;
       }
+    }
+    
+    if (symbol === 'BLNE') {
+      console.log(`🐍 BLNE FINAL P&L: $${totalPnL}`);
     }
     
     // Find ALL positions for this symbol and assign P&L to the trading transaction
