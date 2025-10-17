@@ -1148,7 +1148,7 @@ function extractQuantity(row: Record<string, unknown>): number {
     const columnC = columnNames[2];
     const value = String(row[columnC] || '').replace(/[^0-9.-]/g, '');
     const num = parseFloat(value);
-    if (!isNaN(num) && num > 0) {
+    if (!isNaN(num) && num !== 0) {
       // Only log first 10 quantities to avoid memory issues
       if (logQuantityCount < 10) {
         console.log(`✅ Found quantity in Column C (${columnC}): ${num}`);
@@ -1167,7 +1167,7 @@ function extractQuantity(row: Record<string, unknown>): number {
     if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
       const value = String(row[key]).replace(/[^0-9.-]/g, '');
       const num = parseFloat(value);
-      if (!isNaN(num) && num > 0) {
+      if (!isNaN(num) && num !== 0) {
         return num;
       }
     }
@@ -1328,7 +1328,7 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
 
     const symbol = extractSymbol(row) || extractSymbolFromDescription(description);
     const buySell = extractBuySell(row);
-    const quantity = Math.abs(extractQuantity(row));
+    const quantity = extractQuantity(row);
     const price = extractPrice(row);
     const date = extractDate(row) || '';
     
@@ -1338,7 +1338,7 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     const amountStr = String(row[amountColumn] || '').replace(/[^0-9.-]/g, '');
     const amount = parseFloat(amountStr);
 
-    if (symbol && quantity > 0 && price > 0 && !isNaN(amount)) {
+    if (symbol && quantity !== 0 && price > 0 && !isNaN(amount)) {
       if (!tradesBySymbol.has(symbol)) {
         tradesBySymbol.set(symbol, []);
       }
@@ -1364,11 +1364,22 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
       totalPnL += trade.amount;
     }
     
-    // Find the earliest position for this symbol and update its P&L
-    const positionIndex = positions.findIndex(p => p.symbol === symbol);
-    if (positionIndex >= 0) {
-      positions[positionIndex].pnl = Math.round(totalPnL * 100) / 100;
-      console.log(`💵 ${symbol}: Calculated P&L = $${totalPnL.toFixed(2)} (${trades.length} trades)`);
+    // Find ALL positions for this symbol and assign P&L to the trading transaction
+    const symbolPositions = positions.filter(p => p.symbol === symbol);
+    
+    // Find the trading transaction (not fee transactions)
+    const tradingPosition = symbolPositions.find(p => p.transactionType === 'trading');
+    
+    if (tradingPosition) {
+      tradingPosition.pnl = Math.round(totalPnL * 100) / 100;
+      console.log(`💵 ${symbol}: Assigned P&L = $${totalPnL.toFixed(2)} to trading transaction on ${tradingPosition.date}`);
+    } else if (symbolPositions.length > 0) {
+      // Fallback: if no trading transaction found, assign to earliest position
+      const earliestPosition = symbolPositions.sort((a, b) => a.date.localeCompare(b.date))[0];
+      earliestPosition.pnl = Math.round(totalPnL * 100) / 100;
+      console.log(`💵 ${symbol}: No trading transaction found, assigned P&L = $${totalPnL.toFixed(2)} to earliest position on ${earliestPosition.date}`);
+    } else {
+      console.log(`⚠️ ${symbol}: No positions found for P&L assignment`);
     }
   }
   
