@@ -516,6 +516,7 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
   
   console.log('🔍 FIRST PASS COMPLETED - About to start second pass...');
   console.log('🔍 DEBUG: Reached second pass start point');
+  console.log(`🔍 DEBUG: About to start second pass with ${rawData.length} rows`);
   
       // Second pass: Process borrow fees and match with trading data
       console.log('🔍 SECOND PASS: Looking for borrow fee transactions...');
@@ -544,10 +545,11 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
     // Interest is in Description column (Column E) with format like "2.50000%16 DAYS,BAL=   $32583"
     const isInterestTransaction = description && description.includes('%') && description.includes('DAYS') && description.includes('BAL');
 
-    // Debug: Log borrow fee transactions in second pass
-    if (description && description.includes('STOCK BORROW FEE')) {
-      console.log(`🔍 SECOND PASS BORROW FEE: "${description}" | Type: ${row['Type']} | Amount: ${row['Amount']}`);
-    }
+        // Debug: Log borrow fee transactions in second pass
+        if (description && description.includes('STOCK BORROW FEE')) {
+          console.log(`🔍 SECOND PASS BORROW FEE: "${description}" | Type: ${row['Type']} | Amount: ${row['Amount']}`);
+          borrowFeeRowsFound++;
+        }
     
     // Skip all rows where Type (Column O, index 14) = "Cash", EXCEPT interest transactions
     if (columnNames.length > 14 && !isInterestTransaction) {
@@ -907,6 +909,10 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
       console.log(`  Symbol: ${firstPos.symbol}, Date: ${firstPos.date}, P&L: ${firstPos.pnl}, Overnight: ${firstPos.overnightFee}, Locate: ${firstPos.locateCost}`);
     }
   }
+  
+  console.log('🔍 SECOND PASS COMPLETED - All borrow fee processing finished');
+  console.log(`🔍 BORROW FEE SUMMARY: ${borrowFeeRowsFound} borrow fee transactions found in second pass`);
+  console.log(`🔍 FINAL RESULT: ${positions.length} positions created`);
   
   // Extract period from filename or data
   const period = extractPeriod(fileName);
