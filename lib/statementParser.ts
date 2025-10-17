@@ -661,8 +661,10 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           console.log(`🔍 LOCATE FEE AMOUNT: Raw Amount="${row['Amount']}", Extracted Amount=${amount}`);
         }
         
-        if (amount <= 0) {
-          console.log(`⚠️ Skipping row with zero or negative amount: ${amount} for ${symbol}`);
+        // For fee transactions (borrow fees, market data, etc.), negative amounts are normal
+        // Only skip if amount is exactly zero or if it's a trading transaction with negative amount
+        if (amount === 0 || (transactionType === 'trading' && amount < 0)) {
+          console.log(`⚠️ Skipping row with zero amount or negative trading amount: ${amount} for ${symbol}`);
           if (transactionType === 'marketData') {
             console.log(`   Market Data transaction skipped! Raw data:`, row);
           }
@@ -732,18 +734,20 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         
         if (existingIndex >= 0) {
           // Add to existing position
+          // Use absolute value for fees since they're typically negative amounts (debits)
+          const feeAmount = Math.abs(amount);
           switch (transactionType) {
             case 'overnight':
-              positions[existingIndex].overnightFee += amount;
+              positions[existingIndex].overnightFee += feeAmount;
               break;
             case 'locate':
-              positions[existingIndex].locateCost += amount;
+              positions[existingIndex].locateCost += feeAmount;
               break;
             case 'marketData':
-              positions[existingIndex].marketDataFee += amount;
+              positions[existingIndex].marketDataFee += feeAmount;
               break;
             case 'interest':
-              positions[existingIndex].interestFee += amount;
+              positions[existingIndex].interestFee += feeAmount;
               break;
             case 'trading':
               // For trading transactions, we don't add to fees, but we update P&L
@@ -781,14 +785,16 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           }
           
           // Create new position
+          // Use absolute value for fees since they're typically negative amounts (debits)
+          const feeAmount = Math.abs(amount);
           positions.push({
             symbol,
             date: targetDate,
             quantity: tradingInfo.quantity,
-            overnightFee: transactionType === 'overnight' ? amount : 0,
-            locateCost: transactionType === 'locate' ? amount : 0,
-            marketDataFee: transactionType === 'marketData' ? amount : 0,
-            interestFee: transactionType === 'interest' ? amount : 0,
+            overnightFee: transactionType === 'overnight' ? feeAmount : 0,
+            locateCost: transactionType === 'locate' ? feeAmount : 0,
+            marketDataFee: transactionType === 'marketData' ? feeAmount : 0,
+            interestFee: transactionType === 'interest' ? feeAmount : 0,
             otherFees: 0, // No longer processing 'other' transactions
             commissions,
             rebates,
@@ -1052,7 +1058,7 @@ function extractAmount(row: Record<string, unknown>): number {
     if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
       const value = String(row[key]).replace(/[^0-9.-]/g, '');
       const num = parseFloat(value);
-      if (!isNaN(num) && num !== 0) return Math.abs(num);
+      if (!isNaN(num) && num !== 0) return num; // Return actual amount (can be negative for fees)
     }
   }
   
@@ -1061,9 +1067,9 @@ function extractAmount(row: Record<string, unknown>): number {
     if (value !== null && value !== undefined && value !== '') {
       const strValue = String(value).replace(/[^0-9.-]/g, '');
       const num = parseFloat(strValue);
-      if (!isNaN(num) && num > 0 && num < 1000000) {
+      if (!isNaN(num) && num !== 0 && Math.abs(num) < 1000000) {
         console.log(`Found amount in column "${key}": ${num}`);
-        return num;
+        return num; // Return actual amount (can be negative for fees)
       }
     }
   }
