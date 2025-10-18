@@ -1525,18 +1525,18 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     const price = extractPrice(row);
     const date = extractDate(row) || '';
     
+    // Get the Amount column (transaction value)
+    const cols = Object.keys(row);
+    const amountColumn = cols.length > 13 ? cols[13] : '';
+    const amountStr = String(row[amountColumn] || '').replace(/[^0-9.-]/g, '');
+    const amount = parseFloat(amountStr);
+    
     // Debug APLM specifically - check why it might be filtered out
     if (symbol === 'APLM') {
       console.log(`🐍 APLM DEBUG: Processing row with description: "${description}"`);
       console.log(`🐍 APLM DEBUG: Symbol: ${symbol}, Qty: ${quantity}, Price: $${price}, Date: ${date}, BuySell: ${buySell}`);
       console.log(`🐍 APLM DEBUG: Amount: $${amount}, Amount column: ${amountColumn}`);
     }
-    
-    // Get the Amount column (transaction value)
-    const cols = Object.keys(row);
-    const amountColumn = cols.length > 13 ? cols[13] : '';
-    const amountStr = String(row[amountColumn] || '').replace(/[^0-9.-]/g, '');
-    const amount = parseFloat(amountStr);
     
     // Debug BLNE specifically - check amount extraction
     if (symbol === 'BLNE') {
