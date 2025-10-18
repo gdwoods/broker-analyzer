@@ -74,16 +74,91 @@ async function parseExcel(file: File): Promise<StatementData> {
 }
 
 async function parsePDF(file: File): Promise<StatementData> {
-  // For now, disable PDF parsing due to import issues
-  // This is a temporary solution while we work on PDF.js compatibility
-  throw new Error(
-    'PDF parsing is temporarily disabled due to technical issues.\n\n' +
-    'Please use one of these alternatives:\n' +
-    '1. Export your statement as CSV from your broker\n' +
-    '2. Convert PDF to CSV using an online converter\n' +
-    '3. Copy/paste data from PDF into a spreadsheet and save as CSV\n\n' +
-    'We are working to restore PDF support in a future update.'
-  );
+  // Use a more reliable approach for PDF.js in browser environment
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const typedArray = new Uint8Array(arrayBuffer);
+        
+        // Use dynamic import with proper error handling
+        const pdfjsLib = await import("pdfjs-dist/build/pdf.mjs");
+        
+        // Set worker source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.mjs`;
+        
+        // Load PDF document
+        const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        
+        let fullText = '';
+        
+        // Extract text from all pages
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item) => {
+              if ('str' in item) {
+                return item.str;
+              }
+              return '';
+            })
+            .join(' ');
+          fullText += pageText + '\n';
+        }
+        
+        console.log('📄 PDF extracted text preview:', fullText.substring(0, 1000));
+        
+        // Parse the extracted text using our improved text parser
+        const positions = parsePDFText(fullText);
+        
+        if (positions.length === 0) {
+          throw new Error(
+            'No trading or fee data found in PDF. This might be because:\n\n' +
+            '1. The PDF contains only images (scanned document)\n' +
+            '2. The statement format is not recognized\n' +
+            '3. The data is in a different section than expected\n\n' +
+            'Please check the browser console for extracted text preview to help troubleshoot.'
+          );
+        }
+        
+        console.log(`✅ PDF parsing successful: Found ${positions.length} positions`);
+        
+        // Calculate summary
+        const summary = calculateSummary(positions);
+        const period = extractPeriod(file.name);
+        
+        const statementData: StatementData = {
+          fileName: file.name,
+          uploadDate: new Date(),
+          period,
+          totalOvernightFees: positions.reduce((sum, p) => sum + p.overnightFee, 0),
+          totalLocateCosts: positions.reduce((sum, p) => sum + p.locateCost, 0),
+          totalMarketDataFees: positions.reduce((sum, p) => sum + p.marketDataFee, 0),
+          totalInterestFees: positions.reduce((sum, p) => sum + p.interestFee, 0),
+          totalOtherFees: positions.reduce((sum, p) => sum + p.otherFees, 0),
+          totalCommissions: positions.reduce((sum, p) => sum + p.commissions, 0),
+          totalRebates: positions.reduce((sum, p) => sum + p.rebates, 0),
+          totalMiscFees: positions.reduce((sum, p) => sum + p.miscFees, 0),
+          positions,
+          summary,
+        };
+        
+        resolve(statementData);
+      } catch (err) {
+        console.error('PDF parsing error:', err);
+        reject(new Error(`PDF parse error: ${err instanceof Error ? err.message : 'Unknown error'}`));
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Failed to read PDF file'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 function parsePDFStructured(structuredData: any[], fullText: string): BorrowPosition[] {
@@ -252,39 +327,84 @@ function parsePDFText(text: string): BorrowPosition[] {
   const positions: BorrowPosition[] = [];
   const lines = text.split('\n');
   
-  // Common patterns in brokerage statements
+  console.log(`📄 Parsing ${lines.length} lines of PDF text`);
+  
+  // Enhanced patterns for Cobra statements
   const patterns = {
-    // Look for stock symbols (1-5 uppercase letters)
-    symbol: /\b[A-Z]{1,5}\b/,
+    // Look for stock symbols (1-5 uppercase letters, may include numbers)
+    symbol: /\b[A-Z]{1,5}[0-9]?\b/,
     // Look for dates (various formats)
     date: /\b(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2})\b/,
-    // Look for dollar amounts
-    amount: /\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/,
-    // Look for keywords indicating fees
-    borrowFeeKeywords: /borrow|htb|hard.to.borrow|short.fee/i,
-    locateKeywords: /locate|location.fee/i,
+    // Look for dollar amounts (including negative)
+    amount: /-?\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/,
+    // Look for keywords indicating fees - expanded for Cobra
+    borrowFeeKeywords: /borrow|htb|hard.to.borrow|short.fee|stock.borrow|overnight/i,
+    locateKeywords: /locate|location.fee|locate.cost|locate.fee/i,
+    // Trading patterns
+    tradingKeywords: /buy|sell|purchase|sale|trade/i,
+    // Commission patterns
+    commissionKeywords: /commission|fee|charge/i,
   };
   
   let currentDate = new Date().toISOString().split('T')[0];
+  let foundAnyData = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) continue;
+    if (!line || line.length < 3) continue;
     
     // Try to extract date from line
     const dateMatch = line.match(patterns.date);
     if (dateMatch) {
       try {
-        const parsedDate = new Date(dateMatch[1]);
-        if (!isNaN(parsedDate.getTime())) {
-          currentDate = parsedDate.toISOString().split('T')[0];
+        const parsedDate = parsePDFDate(dateMatch[1]);
+        if (parsedDate) {
+          currentDate = parsedDate;
+          console.log(`📅 Found date: ${currentDate}`);
         }
       } catch {
         // Keep using previous date
       }
     }
     
-    // Look for lines that mention borrow or locate fees
+    // Look for trading transactions
+    const isTradingLine = patterns.tradingKeywords.test(line);
+    if (isTradingLine) {
+      const symbolMatch = line.match(patterns.symbol);
+      if (symbolMatch) {
+        const symbol = symbolMatch[0];
+        const amountMatch = line.match(patterns.amount);
+        if (amountMatch) {
+          const amount = parseFloat(amountMatch[1].replace(/[$,]/g, ''));
+          const isSell = line.toLowerCase().includes('sell') || line.toLowerCase().includes('sale');
+          
+          positions.push({
+            symbol,
+            date: currentDate,
+            quantity: isSell ? -100 : 100, // Default quantity, will be refined with better parsing
+            overnightFee: 0,
+            locateCost: 0,
+            marketDataFee: 0,
+            interestFee: 0,
+            otherFees: 0,
+            commissions: 0,
+            rebates: 0,
+            miscFees: 0,
+            borrowRate: 0,
+            value: Math.abs(amount),
+            pnl: 0,
+            transactionType: 'trading',
+            buySell: isSell ? 'sell' : 'buy',
+            price: Math.abs(amount) / 100, // Default price calculation
+          });
+          
+          console.log(`📈 Found trading: ${symbol} ${isSell ? 'sell' : 'buy'} $${amount}`);
+          foundAnyData = true;
+        }
+      }
+    }
+    
+    // Look for borrow/locate fees
     const isBorrowLine = patterns.borrowFeeKeywords.test(line);
     const isLocateLine = patterns.locateKeywords.test(line);
     
@@ -306,9 +426,9 @@ function parsePDFText(text: string): BorrowPosition[] {
       }
       
       // Extract amounts
-      const amounts = line.match(new RegExp(patterns.amount.source, 'g'));
-      if (amounts && symbol) {
-        const cleanAmount = parseFloat(amounts[0].replace(/[$,]/g, ''));
+      const amountMatch = line.match(patterns.amount);
+      if (amountMatch && symbol) {
+        const cleanAmount = parseFloat(amountMatch[1].replace(/[$,]/g, ''));
         
         if (!isNaN(cleanAmount) && cleanAmount > 0) {
           // Check if this symbol/date combination already exists
@@ -340,14 +460,19 @@ function parsePDFText(text: string): BorrowPosition[] {
               miscFees: 0,
               borrowRate: 0,
               value: 0,
+              pnl: 0,
               transactionType: isBorrowLine ? 'overnight' : isLocateLine ? 'locate' : 'trading',
             });
           }
+          
+          console.log(`💰 Found fee: ${symbol} ${isBorrowLine ? 'borrow' : 'locate'} $${cleanAmount}`);
+          foundAnyData = true;
         }
       }
     }
   }
   
+  console.log(`📊 PDF parsing complete: Found ${positions.length} positions`);
   return positions;
 }
 
