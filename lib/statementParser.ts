@@ -1229,7 +1229,9 @@ function extractDate(row: Record<string, unknown>): string | null {
         const excelEpoch = new Date(1900, 0, 1);
         const jsDate = new Date(excelEpoch.getTime() + (numValue - 2) * 24 * 60 * 60 * 1000);
         if (!isNaN(jsDate.getTime())) {
-          return jsDate.toISOString().split('T')[0];
+          const convertedDate = jsDate.toISOString().split('T')[0];
+          console.log(`📅 Excel serial date conversion: ${numValue} -> ${convertedDate}`);
+          return convertedDate;
         }
       }
 
