@@ -53,6 +53,10 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
         <CardDescription>
           Upload your monthly statement in CSV or Excel format
           <br />
+          <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 block">
+            💡 For accurate P&L calculations, include enough trading history to capture all positions that affect the current period
+          </span>
+          <br />
           <span className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 block">
             💡 Tip: If you have a PDF, convert it to CSV using your broker&apos;s export feature or an online converter
           </span>

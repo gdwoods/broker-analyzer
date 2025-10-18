@@ -21,6 +21,9 @@ Open [http://localhost:3000](http://localhost:3000)
 2. Drag and drop it into the upload area
 3. See the analysis come to life! 🎉
 
+### 💡 Important: Complete Trading History
+For accurate P&L calculations, **upload enough trading history to include all positions that affect the current period**. If you have positions that started before your statement period, include those trades in your upload.
+
 ## 📊 What You'll See
 
 After uploading a statement, you'll see:

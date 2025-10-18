@@ -51,6 +51,12 @@ npm run dev
 3. **Compare Months**: Upload multiple statements to see trends over time
 4. **Export Reports**: Generate PDF reports of your analysis (coming soon)
 
+### 💡 Important: Complete Trading History
+
+For accurate P&L calculations, **upload enough trading history to include all positions that affect the current period**. If you have positions that started before your statement period, include those trades in your upload.
+
+**Example**: If you're analyzing October 2024 but have positions that started in September, include both months' data for complete P&L accuracy.
+
 ## Supported File Formats
 
 - ✅ **CSV (.csv)** - Recommended for accuracy

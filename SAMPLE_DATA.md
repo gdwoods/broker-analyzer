@@ -77,6 +77,7 @@ If you want to test the app without real Cobra statements:
 3. **Include all required columns** (Symbol, Date, at least one fee type)
 4. **Remove any summary rows** from the bottom of statements
 5. **Keep header row** as the first row
+6. **💡 Include complete trading history** - For accurate P&L calculations, upload enough data to include all positions that affect the current period
 
 ## Common Issues
 
