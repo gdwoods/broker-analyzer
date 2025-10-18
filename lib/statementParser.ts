@@ -619,17 +619,6 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         if (description.includes('MARK TO MARKET')) {
           // Ignore Mark To Market transactions
           continue;
-        } else if (hasTradingActivity) {
-          // If row has quantity, it's a trading transaction regardless of other indicators
-          transactionType = 'trading';
-          console.log(`🔍 TRADING TRANSACTION DETECTED (has quantity ${quantity}): "${description}"`);
-        } else if (isInterestTransaction) {
-          // Interest transactions have format like "2.50000%16 DAYS,BAL=   $32583" in description
-          transactionType = 'interest';
-          console.log(`✅ Detected interest transaction in Description: "${description}"`);
-        } else if (description.includes('ACH') && row['Type'] === 'Cash') {
-          // Ignore ACH transactions where Type = Cash (but only if NOT interest)
-          continue;
         } else if (description.includes('STOCK BORROW FEE')) {
           // Determine fee type based on presence of "C"
           // "C STOCK BORROW FEE" = Locate fee (e.g., "10/13 C STOCK BORROW FEE GV")
@@ -644,6 +633,17 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           // Interest transactions have pattern: "2.50000%16 DAYS,BAL=   $32583"
           transactionType = 'interest';
           console.log(`🔍 INTEREST TRANSACTION DETECTED: "${description}"`);
+        } else if (hasTradingActivity) {
+          // If row has quantity, it's a trading transaction regardless of other indicators
+          transactionType = 'trading';
+          console.log(`🔍 TRADING TRANSACTION DETECTED (has quantity ${quantity}): "${description}"`);
+        } else if (isInterestTransaction) {
+          // Interest transactions have format like "2.50000%16 DAYS,BAL=   $32583" in description
+          transactionType = 'interest';
+          console.log(`✅ Detected interest transaction in Description: "${description}"`);
+        } else if (description.includes('ACH') && row['Type'] === 'Cash') {
+          // Ignore ACH transactions where Type = Cash (but only if NOT interest)
+          continue;
         } else {
           // This is a regular trading transaction
           transactionType = 'trading';
@@ -1038,6 +1038,15 @@ function extractDate(row: Record<string, unknown>): string | null {
     if (row[key]) {
       const dateStr = String(row[key]);
 
+      // Handle MM/DD/YY format (like 10/16/25)
+      if (/^\d{1,2}\/\d{1,2}\/\d{2}$/.test(dateStr)) {
+        const parts = dateStr.split('/');
+        const month = parts[0].padStart(2, '0');
+        const day = parts[1].padStart(2, '0');
+        const year = '20' + parts[2]; // Assume 20xx for 2-digit years
+        return `${year}-${month}-${day}`;
+      }
+
       // Handle MM/DD/YYYY format
       if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
         const parts = dateStr.split('/');
@@ -1398,8 +1407,6 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     // Sort trades by date
     trades.sort((a, b) => a.date.localeCompare(b.date));
     
-    let totalPnL = 0;
-    
     // Optional debug of trades per symbol
     if (DEBUG_VERBOSE) {
       console.log(`🔍 Trades Debug: Found ${trades.length} trades for ${symbol}`);
@@ -1408,36 +1415,64 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
       }
     }
 
-    // Calculate P&L by walking trades and summing amounts within each flat-to-flat cycle
-    // A cycle begins when netPosition moves away from 0 and ends when it returns to 0.
-    let netPosition = 0;
-    let cyclePnL = 0;
-    totalPnL = 0;
+    // Calculate P&L using FIFO (First In, First Out) method
+    // This handles partial positions and gives more accurate P&L
+    let totalPnL = 0;
+    const positionStack: Array<{quantity: number, price: number, date: string}> = [];
     
-    if (symbol === 'BLNE') {
-      console.log(`🐍 BLNE P&L CALCULATION - Processing ${trades.length} trades:`);
+    if (symbol === 'APLM' || DEBUG_VERBOSE) {
+      console.log(`💰 ${symbol} P&L CALCULATION - Processing ${trades.length} trades:`);
     }
     
     for (const trade of trades) {
-      const oldNetPosition = netPosition;
-      netPosition += trade.quantity;
-      cyclePnL += trade.amount; // amounts already signed by broker export
-      
-      if (symbol === 'BLNE') {
-        console.log(`🐍   ${trade.date} | Qty: ${trade.quantity} | Amount: $${trade.amount} | NetPos: ${oldNetPosition} → ${netPosition} | CyclePnL: $${cyclePnL}`);
+      if (symbol === 'APLM' || DEBUG_VERBOSE) {
+        console.log(`   ${trade.date} | ${trade.buySell} | Qty: ${trade.quantity} | Price: $${trade.price} | Amount: $${trade.amount}`);
       }
       
-      if (netPosition === 0) {
-        totalPnL += cyclePnL;
-        if (symbol === 'BLNE') {
-          console.log(`🐍   CYCLE COMPLETE! Adding $${cyclePnL} to total P&L. New total: $${totalPnL}`);
+      if (trade.buySell.toLowerCase() === 'buy') {
+        // Add to position stack
+        positionStack.push({
+          quantity: Math.abs(trade.quantity),
+          price: trade.price,
+          date: trade.date
+        });
+      } else if (trade.buySell.toLowerCase() === 'sell') {
+        // Sell against positions in FIFO order
+        let remainingToSell = Math.abs(trade.quantity);
+        const sellPrice = trade.price;
+        
+        while (remainingToSell > 0 && positionStack.length > 0) {
+          const position = positionStack[0];
+          
+          if (position.quantity <= remainingToSell) {
+            // Close entire position
+            const pnl = (sellPrice - position.price) * position.quantity;
+            totalPnL += pnl;
+            
+            if (symbol === 'APLM' || DEBUG_VERBOSE) {
+              console.log(`     SELL: ${position.quantity} @ $${sellPrice} vs BUY: ${position.quantity} @ $${position.price} = P&L: $${pnl.toFixed(2)}`);
+            }
+            
+            remainingToSell -= position.quantity;
+            positionStack.shift(); // Remove from stack
+          } else {
+            // Partial close
+            const pnl = (sellPrice - position.price) * remainingToSell;
+            totalPnL += pnl;
+            
+            if (symbol === 'APLM' || DEBUG_VERBOSE) {
+              console.log(`     SELL: ${remainingToSell} @ $${sellPrice} vs BUY: ${remainingToSell} @ $${position.price} = P&L: $${pnl.toFixed(2)}`);
+            }
+            
+            position.quantity -= remainingToSell;
+            remainingToSell = 0;
+          }
         }
-        cyclePnL = 0;
       }
     }
     
-    if (symbol === 'BLNE') {
-      console.log(`🐍 BLNE FINAL P&L: $${totalPnL}`);
+    if (symbol === 'APLM' || DEBUG_VERBOSE) {
+      console.log(`💰 ${symbol} FINAL P&L: $${totalPnL.toFixed(2)}`);
     }
     
     // Find ALL positions for this symbol and assign P&L to the trading transaction
