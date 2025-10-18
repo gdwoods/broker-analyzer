@@ -41,6 +41,7 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
       'text/csv': ['.csv'],
       'application/vnd.ms-excel': ['.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/pdf': ['.pdf'],
     },
     maxFiles: 1,
     multiple: false,
@@ -51,14 +52,14 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
       <CardHeader>
         <CardTitle>Upload Cobra Trading Statement</CardTitle>
         <CardDescription>
-          Upload your monthly statement in CSV or Excel format
+          Upload your monthly statement in CSV, Excel, or PDF format
           <br />
           <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 block">
             💡 For accurate P&L calculations, include enough trading history to capture all positions that affect the current period
           </span>
           <br />
-          <span className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 block">
-            💡 Tip: If you have a PDF, convert it to CSV using your broker&apos;s export feature or an online converter
+          <span className="text-xs text-green-600 dark:text-green-400 mt-1 block">
+            ✨ PDF support: The app can now parse PDF statements directly! Required: PDF must contain selectable text (not scanned images)
           </span>
         </CardDescription>
       </CardHeader>
@@ -93,7 +94,7 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
                   </>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Supported formats: CSV, XLS, XLSX
+                  Supported formats: CSV, XLS, XLSX, PDF
                 </p>
               </>
             )}

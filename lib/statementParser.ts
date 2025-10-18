@@ -91,12 +91,31 @@ async function parsePDF(file: File): Promise<StatementData> {
         // Load PDF document
         const pdf = await pdfjs.getDocument({ data: typedArray }).promise;
         
+        let structuredData: any[] = [];
         let fullText = '';
         
-        // Extract text from all pages
+        // Extract text with position information for better parsing
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
+          
+          // Build structured data with position info
+          const pageData = textContent.items.map((item) => {
+            if ('str' in item && 'transform' in item) {
+              return {
+                text: item.str,
+                x: item.transform[4], // X position
+                y: item.transform[5], // Y position
+                width: item.width || 0,
+                height: item.height || 0,
+              };
+            }
+            return null;
+          }).filter(Boolean);
+          
+          structuredData = [...structuredData, ...pageData];
+          
+          // Also build full text for fallback parsing
           const pageText = textContent.items
             .map((item) => {
               if ('str' in item) {
@@ -108,32 +127,47 @@ async function parsePDF(file: File): Promise<StatementData> {
           fullText += pageText + '\n';
         }
         
-        // Parse the extracted text
-        const positions = parsePDFText(fullText);
+        console.log('📄 PDF extracted text preview:', fullText.substring(0, 500));
+        
+        // Try structured parsing first, fallback to text parsing
+        let positions = parsePDFStructured(structuredData, fullText);
         
         if (positions.length === 0) {
-          throw new Error('No borrow fee data found in PDF. Please check the file format or contact support.');
+          console.log('⚠️ No data found with structured parsing, trying text parsing...');
+          positions = parsePDFText(fullText);
         }
+        
+        if (positions.length === 0) {
+          throw new Error(
+            'No trading or fee data found in PDF. This might be because:\n\n' +
+            '1. The PDF contains only images (scanned document)\n' +
+            '2. The statement format is not recognized\n' +
+            '3. The data is in a different section than expected\n\n' +
+            'Please try exporting your statement as CSV from your broker, or contact support with a sample PDF.'
+          );
+        }
+        
+        console.log(`✅ PDF parsing successful: Found ${positions.length} positions`);
         
         // Calculate summary
         const summary = calculateSummary(positions);
         const period = extractPeriod(file.name);
         
-  const statementData: StatementData = {
-    fileName: file.name,
-    uploadDate: new Date(),
-    period,
-    totalOvernightFees: positions.reduce((sum, p) => sum + p.overnightFee, 0),
-    totalLocateCosts: positions.reduce((sum, p) => sum + p.locateCost, 0),
-    totalMarketDataFees: positions.reduce((sum, p) => sum + p.marketDataFee, 0),
-    totalInterestFees: positions.reduce((sum, p) => sum + p.interestFee, 0),
-    totalOtherFees: positions.reduce((sum, p) => sum + p.otherFees, 0),
-    totalCommissions: positions.reduce((sum, p) => sum + p.commissions, 0),
-    totalRebates: positions.reduce((sum, p) => sum + p.rebates, 0),
-    totalMiscFees: positions.reduce((sum, p) => sum + p.miscFees, 0),
-    positions,
-    summary,
-  };
+        const statementData: StatementData = {
+          fileName: file.name,
+          uploadDate: new Date(),
+          period,
+          totalOvernightFees: positions.reduce((sum, p) => sum + p.overnightFee, 0),
+          totalLocateCosts: positions.reduce((sum, p) => sum + p.locateCost, 0),
+          totalMarketDataFees: positions.reduce((sum, p) => sum + p.marketDataFee, 0),
+          totalInterestFees: positions.reduce((sum, p) => sum + p.interestFee, 0),
+          totalOtherFees: positions.reduce((sum, p) => sum + p.otherFees, 0),
+          totalCommissions: positions.reduce((sum, p) => sum + p.commissions, 0),
+          totalRebates: positions.reduce((sum, p) => sum + p.rebates, 0),
+          totalMiscFees: positions.reduce((sum, p) => sum + p.miscFees, 0),
+          positions,
+          summary,
+        };
         
         resolve(statementData);
       } catch (err) {
@@ -147,6 +181,168 @@ async function parsePDF(file: File): Promise<StatementData> {
     
     reader.readAsArrayBuffer(file);
   });
+}
+
+function parsePDFStructured(structuredData: any[], fullText: string): BorrowPosition[] {
+  const positions: BorrowPosition[] = [];
+  
+  // Group text items by rows (similar Y coordinates)
+  const rows: any[][] = [];
+  const tolerance = 2; // Y coordinate tolerance for grouping into rows
+  
+  structuredData.forEach((item) => {
+    if (!item.text.trim()) return;
+    
+    // Find existing row with similar Y coordinate
+    let foundRow = false;
+    for (const row of rows) {
+      if (Math.abs(row[0].y - item.y) <= tolerance) {
+        row.push(item);
+        foundRow = true;
+        break;
+      }
+    }
+    
+    // Create new row if no match found
+    if (!foundRow) {
+      rows.push([item]);
+    }
+  });
+  
+  // Sort rows by Y coordinate (top to bottom)
+  rows.sort((a, b) => b[0].y - a[0].y);
+  
+  // Sort items within each row by X coordinate (left to right)
+  rows.forEach(row => row.sort((a, b) => a.x - b.x));
+  
+  console.log(`📊 Found ${rows.length} rows in PDF`);
+  
+  // Look for table-like structures
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowText = row.map(item => item.text).join(' ').trim();
+    
+    // Skip empty rows or headers
+    if (!rowText || rowText.length < 3) continue;
+    
+    // Look for trading patterns
+    const tradingPattern = /(buy|sell|b|s)\s+(\d+)\s+([a-z]+)\s+([0-9.,$]+)/i;
+    const borrowPattern = /(borrow|locate|htb)\s+(fee|cost)\s+([a-z]+)\s+([0-9.,$]+)/i;
+    const datePattern = /(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/;
+    
+    // Try to extract trading data
+    const tradingMatch = rowText.match(tradingPattern);
+    if (tradingMatch) {
+      const [, action, quantity, symbol, amount] = tradingMatch;
+      const date = extractDateFromRow(row, rows, i) || new Date().toISOString().split('T')[0];
+      
+      positions.push({
+        symbol: symbol.toUpperCase(),
+        date,
+        quantity: parseInt(quantity) * (action.toLowerCase() === 'buy' ? 1 : -1),
+        overnightFee: 0,
+        locateCost: 0,
+        marketDataFee: 0,
+        interestFee: 0,
+        otherFees: 0,
+        commissions: 0,
+        rebates: 0,
+        miscFees: 0,
+        borrowRate: 0,
+        value: parseFloat(amount.replace(/[$,]/g, '')),
+        pnl: 0,
+        transactionType: 'trading',
+        buySell: action.toLowerCase(),
+        price: parseFloat(amount.replace(/[$,]/g, '')) / parseInt(quantity),
+      });
+      
+      console.log(`📈 Found trading: ${action} ${quantity} ${symbol.toUpperCase()} @ $${amount}`);
+    }
+    
+    // Try to extract fee data
+    const borrowMatch = rowText.match(borrowPattern);
+    if (borrowMatch) {
+      const [, feeType, , symbol, amount] = borrowMatch;
+      const date = extractDateFromRow(row, rows, i) || new Date().toISOString().split('T')[0];
+      
+      const feeAmount = parseFloat(amount.replace(/[$,]/g, ''));
+      const isLocate = feeType.toLowerCase().includes('locate');
+      
+      positions.push({
+        symbol: symbol.toUpperCase(),
+        date,
+        quantity: 0,
+        overnightFee: isLocate ? 0 : feeAmount,
+        locateCost: isLocate ? feeAmount : 0,
+        marketDataFee: 0,
+        interestFee: 0,
+        otherFees: 0,
+        commissions: 0,
+        rebates: 0,
+        miscFees: 0,
+        borrowRate: 0,
+        value: 0,
+        pnl: 0,
+        transactionType: isLocate ? 'locate' : 'overnight',
+      });
+      
+      console.log(`💰 Found fee: ${feeType} for ${symbol.toUpperCase()} = $${amount}`);
+    }
+  }
+  
+  return positions;
+}
+
+function extractDateFromRow(row: any[], allRows: any[][], currentIndex: number): string | null {
+  // Look for date in current row
+  for (const item of row) {
+    const dateMatch = item.text.match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/);
+    if (dateMatch) {
+      return parsePDFDate(dateMatch[1]);
+    }
+  }
+  
+  // Look in nearby rows
+  for (let i = Math.max(0, currentIndex - 3); i <= Math.min(allRows.length - 1, currentIndex + 3); i++) {
+    if (i === currentIndex) continue;
+    
+    for (const item of allRows[i]) {
+      const dateMatch = item.text.match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/);
+      if (dateMatch) {
+        return parsePDFDate(dateMatch[1]);
+      }
+    }
+  }
+  
+  return null;
+}
+
+function parsePDFDate(dateStr: string): string {
+  // Handle MM/DD/YY format
+  if (/^\d{1,2}\/\d{1,2}\/\d{2}$/.test(dateStr)) {
+    const parts = dateStr.split('/');
+    const month = parts[0].padStart(2, '0');
+    const day = parts[1].padStart(2, '0');
+    const year = '20' + parts[2];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Handle MM/DD/YYYY format
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    const parts = dateStr.split('/');
+    const month = parts[0].padStart(2, '0');
+    const day = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Try to parse as date
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString().split('T')[0];
+  }
+  
+  return new Date().toISOString().split('T')[0];
 }
 
 function parsePDFText(text: string): BorrowPosition[] {
