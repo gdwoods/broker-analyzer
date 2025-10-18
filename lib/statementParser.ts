@@ -74,113 +74,16 @@ async function parseExcel(file: File): Promise<StatementData> {
 }
 
 async function parsePDF(file: File): Promise<StatementData> {
-  // Use legacy build which is browser-compatible
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  
-  // Set worker source to legacy version
-  pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs`;
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const typedArray = new Uint8Array(arrayBuffer);
-        
-        // Load PDF document
-        const pdf = await pdfjs.getDocument({ data: typedArray }).promise;
-        
-        let structuredData: any[] = [];
-        let fullText = '';
-        
-        // Extract text with position information for better parsing
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          
-          // Build structured data with position info
-          const pageData = textContent.items.map((item) => {
-            if ('str' in item && 'transform' in item) {
-              return {
-                text: item.str,
-                x: item.transform[4], // X position
-                y: item.transform[5], // Y position
-                width: item.width || 0,
-                height: item.height || 0,
-              };
-            }
-            return null;
-          }).filter(Boolean);
-          
-          structuredData = [...structuredData, ...pageData];
-          
-          // Also build full text for fallback parsing
-          const pageText = textContent.items
-            .map((item) => {
-              if ('str' in item) {
-                return item.str;
-              }
-              return '';
-            })
-            .join(' ');
-          fullText += pageText + '\n';
-        }
-        
-        console.log('📄 PDF extracted text preview:', fullText.substring(0, 500));
-        
-        // Try structured parsing first, fallback to text parsing
-        let positions = parsePDFStructured(structuredData, fullText);
-        
-        if (positions.length === 0) {
-          console.log('⚠️ No data found with structured parsing, trying text parsing...');
-          positions = parsePDFText(fullText);
-        }
-        
-        if (positions.length === 0) {
-          throw new Error(
-            'No trading or fee data found in PDF. This might be because:\n\n' +
-            '1. The PDF contains only images (scanned document)\n' +
-            '2. The statement format is not recognized\n' +
-            '3. The data is in a different section than expected\n\n' +
-            'Please try exporting your statement as CSV from your broker, or contact support with a sample PDF.'
-          );
-        }
-        
-        console.log(`✅ PDF parsing successful: Found ${positions.length} positions`);
-        
-        // Calculate summary
-        const summary = calculateSummary(positions);
-        const period = extractPeriod(file.name);
-        
-        const statementData: StatementData = {
-          fileName: file.name,
-          uploadDate: new Date(),
-          period,
-          totalOvernightFees: positions.reduce((sum, p) => sum + p.overnightFee, 0),
-          totalLocateCosts: positions.reduce((sum, p) => sum + p.locateCost, 0),
-          totalMarketDataFees: positions.reduce((sum, p) => sum + p.marketDataFee, 0),
-          totalInterestFees: positions.reduce((sum, p) => sum + p.interestFee, 0),
-          totalOtherFees: positions.reduce((sum, p) => sum + p.otherFees, 0),
-          totalCommissions: positions.reduce((sum, p) => sum + p.commissions, 0),
-          totalRebates: positions.reduce((sum, p) => sum + p.rebates, 0),
-          totalMiscFees: positions.reduce((sum, p) => sum + p.miscFees, 0),
-          positions,
-          summary,
-        };
-        
-        resolve(statementData);
-      } catch (err) {
-        reject(new Error(`PDF parse error: ${err instanceof Error ? err.message : 'Unknown error'}`));
-      }
-    };
-    
-    reader.onerror = () => {
-      reject(new Error('Failed to read PDF file'));
-    };
-    
-    reader.readAsArrayBuffer(file);
-  });
+  // For now, disable PDF parsing due to import issues
+  // This is a temporary solution while we work on PDF.js compatibility
+  throw new Error(
+    'PDF parsing is temporarily disabled due to technical issues.\n\n' +
+    'Please use one of these alternatives:\n' +
+    '1. Export your statement as CSV from your broker\n' +
+    '2. Convert PDF to CSV using an online converter\n' +
+    '3. Copy/paste data from PDF into a spreadsheet and save as CSV\n\n' +
+    'We are working to restore PDF support in a future update.'
+  );
 }
 
 function parsePDFStructured(structuredData: any[], fullText: string): BorrowPosition[] {
