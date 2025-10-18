@@ -1511,6 +1511,7 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     }
     
     const description = extractDescription(row);
+    const symbol = extractSymbol(row) || extractSymbolFromDescription(description);
     
     // Skip non-trading transactions
     if (description.includes('STOCK BORROW FEE') || 
@@ -1518,10 +1519,12 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
         description.includes('INTEREST') ||
         description.includes('MARK TO MARKET') ||
         description.includes('ACH')) {
+      // Debug APLM specifically - check if it's being filtered out here
+      if (symbol === 'APLM') {
+        console.log(`🐍 APLM FILTERED OUT: Description "${description}" contains skip keywords`);
+      }
       continue;
     }
-
-    const symbol = extractSymbol(row) || extractSymbolFromDescription(description);
     const buySell = extractBuySell(row);
     const quantity = extractQuantity(row);
     const price = extractPrice(row);
@@ -1538,6 +1541,7 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
       console.log(`🐍 APLM DEBUG: Processing row with description: "${description}"`);
       console.log(`🐍 APLM DEBUG: Symbol: ${symbol}, Qty: ${quantity}, Price: $${price}, Date: ${date}, BuySell: ${buySell}`);
       console.log(`🐍 APLM DEBUG: Amount: $${amount}, Amount column: ${amountColumn}`);
+      console.log(`🐍 APLM DEBUG: Will add to trades: symbol=${!!symbol}, quantity=${quantity !== 0}, amount=${!isNaN(amount)}`);
     }
     
     // Debug BLNE specifically - check amount extraction
