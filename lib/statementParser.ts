@@ -1525,10 +1525,11 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     const price = extractPrice(row);
     const date = extractDate(row) || '';
     
-    // Debug BLNE specifically - check why it might be filtered out
-    if (symbol === 'BLNE') {
-      console.log(`🐍 BLNE DEBUG: Processing row with description: "${description}"`);
-      console.log(`🐍 BLNE DEBUG: Symbol: ${symbol}, Qty: ${quantity}, Price: $${price}, Date: ${date}`);
+    // Debug APLM specifically - check why it might be filtered out
+    if (symbol === 'APLM') {
+      console.log(`🐍 APLM DEBUG: Processing row with description: "${description}"`);
+      console.log(`🐍 APLM DEBUG: Symbol: ${symbol}, Qty: ${quantity}, Price: $${price}, Date: ${date}, BuySell: ${buySell}`);
+      console.log(`🐍 APLM DEBUG: Amount: $${amount}, Amount column: ${amountColumn}`);
     }
     
     // Get the Amount column (transaction value)
@@ -1567,10 +1568,10 @@ function calculatePositionPnL(positions: BorrowPosition[], rawData: Record<strin
     trades.sort((a, b) => a.date.localeCompare(b.date));
     
     // Optional debug of trades per symbol
-    if (DEBUG_VERBOSE) {
+    if (DEBUG_VERBOSE || symbol === 'APLM') {
       console.log(`🔍 Trades Debug: Found ${trades.length} trades for ${symbol}`);
       for (const trade of trades) {
-        console.log(`  Trade: ${trade.date} | Qty: ${trade.quantity} | Price: $${trade.price} | Amount: $${trade.amount}`);
+        console.log(`  Trade: ${trade.date} | ${trade.buySell} | Qty: ${trade.quantity} | Price: $${trade.price} | Amount: $${trade.amount}`);
       }
     }
 
