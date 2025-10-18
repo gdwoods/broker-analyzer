@@ -775,6 +775,19 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         const price = extractPrice(row);
         const hasTradingActivity = quantity !== 0;
         
+        // Debug APLM transactions specifically
+        if (description.includes('APLM') || (row['Symbol'] && String(row['Symbol']).includes('APLM'))) {
+          console.log(`🔍 APLM TRANSACTION DEBUG: Row ${rowIndex}`);
+          console.log(`   Description: "${description}"`);
+          console.log(`   Symbol: ${row['Symbol']}`);
+          console.log(`   Quantity: ${quantity}`);
+          console.log(`   Price: ${price}`);
+          console.log(`   Amount: ${row['Amount']}`);
+          console.log(`   Type: ${row['Type']}`);
+          console.log(`   HasTradingActivity: ${hasTradingActivity}`);
+          console.log(`   Full row:`, row);
+        }
+        
         if (description.includes('MARK TO MARKET')) {
           // Ignore Mark To Market transactions
           continue;
@@ -796,10 +809,6 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
           // If row has quantity, it's a trading transaction regardless of other indicators
           transactionType = 'trading';
           console.log(`🔍 TRADING TRANSACTION DETECTED (has quantity ${quantity}): "${description}"`);
-        } else if (isInterestTransaction) {
-          // Interest transactions have format like "2.50000%16 DAYS,BAL=   $32583" in description
-          transactionType = 'interest';
-          console.log(`✅ Detected interest transaction in Description: "${description}"`);
         } else if (description.includes('ACH') && row['Type'] === 'Cash') {
           // Ignore ACH transactions where Type = Cash (but only if NOT interest)
           continue;
@@ -811,9 +820,25 @@ function processData(rawData: Record<string, unknown>[], fileName: string): Stat
         // Always prioritize Column D for symbol extraction
         let symbol = extractSymbol(row);
         
+        // Debug symbol extraction for APLM
+        if (description.includes('APLM') || (row['Symbol'] && String(row['Symbol']).includes('APLM'))) {
+          console.log(`🔍 APLM SYMBOL EXTRACTION:`);
+          console.log(`   Initial symbol from extractSymbol: "${symbol}"`);
+          console.log(`   Symbol from Column D: "${row['Symbol']}"`);
+        }
+        
         // Only use description as fallback if Column D doesn't have a valid symbol
         if (!symbol || !/^[A-Z]{1,5}[0-9]?$/.test(symbol)) {
-          symbol = extractSymbolFromDescription(description);
+          const descSymbol = extractSymbolFromDescription(description);
+          if (description.includes('APLM') || (row['Symbol'] && String(row['Symbol']).includes('APLM'))) {
+            console.log(`   Fallback symbol from description: "${descSymbol}"`);
+          }
+          symbol = descSymbol;
+        }
+        
+        // Debug final symbol for APLM
+        if (description.includes('APLM') || (row['Symbol'] && String(row['Symbol']).includes('APLM'))) {
+          console.log(`   Final symbol: "${symbol}"`);
         }
 
         // For interest transactions, use a special symbol since they don't have stock symbols
