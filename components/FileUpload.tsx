@@ -41,7 +41,8 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
       'text/csv': ['.csv'],
       'application/vnd.ms-excel': ['.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/pdf': ['.pdf'],
+      // PDF temporarily disabled due to Next.js 15 compatibility issues
+      // 'application/pdf': ['.pdf'],
     },
     maxFiles: 1,
     multiple: false,
@@ -52,14 +53,14 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
       <CardHeader>
         <CardTitle>Upload Cobra Trading Statement</CardTitle>
         <CardDescription>
-          Upload your Cobra Trading statement in PDF, CSV, or Excel format
+          Upload your Cobra Trading statement in CSV or Excel format
           <br />
           <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 block">
             💡 For accurate P&L calculations, include enough trading history to capture all positions that affect the current period
           </span>
           <br />
-          <span className="text-xs text-green-600 dark:text-green-400 mt-1 block">
-            ✨ PDF support: Direct parsing of Cobra PDF statements! Works best with digital PDFs (not scanned images)
+          <span className="text-xs text-orange-600 dark:text-orange-400 mt-1 block">
+            ⚠️ PDF support temporarily unavailable due to technical issues. Please copy/paste from PDF to Excel/CSV or use an online converter.
           </span>
         </CardDescription>
       </CardHeader>
@@ -94,7 +95,7 @@ export default function FileUpload({ onStatementParsed }: FileUploadProps) {
                   </>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Supported formats: PDF, CSV, XLS, XLSX
+                  Supported formats: CSV, XLS, XLSX
                 </p>
               </>
             )}

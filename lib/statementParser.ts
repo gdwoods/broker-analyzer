@@ -74,91 +74,26 @@ async function parseExcel(file: File): Promise<StatementData> {
 }
 
 async function parsePDF(file: File): Promise<StatementData> {
-  // Use a more reliable approach for PDF.js in browser environment
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const typedArray = new Uint8Array(arrayBuffer);
-        
-        // Use dynamic import with proper error handling
-        const pdfjsLib = await import("pdfjs-dist/build/pdf.mjs");
-        
-        // Set worker source
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.mjs`;
-        
-        // Load PDF document
-        const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
-        
-        let fullText = '';
-        
-        // Extract text from all pages
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item) => {
-              if ('str' in item) {
-                return item.str;
-              }
-              return '';
-            })
-            .join(' ');
-          fullText += pageText + '\n';
-        }
-        
-        console.log('📄 PDF extracted text preview:', fullText.substring(0, 1000));
-        
-        // Parse the extracted text using our improved text parser
-        const positions = parsePDFText(fullText);
-        
-        if (positions.length === 0) {
-          throw new Error(
-            'No trading or fee data found in PDF. This might be because:\n\n' +
-            '1. The PDF contains only images (scanned document)\n' +
-            '2. The statement format is not recognized\n' +
-            '3. The data is in a different section than expected\n\n' +
-            'Please check the browser console for extracted text preview to help troubleshoot.'
-          );
-        }
-        
-        console.log(`✅ PDF parsing successful: Found ${positions.length} positions`);
-        
-        // Calculate summary
-        const summary = calculateSummary(positions);
-        const period = extractPeriod(file.name);
-        
-        const statementData: StatementData = {
-          fileName: file.name,
-          uploadDate: new Date(),
-          period,
-          totalOvernightFees: positions.reduce((sum, p) => sum + p.overnightFee, 0),
-          totalLocateCosts: positions.reduce((sum, p) => sum + p.locateCost, 0),
-          totalMarketDataFees: positions.reduce((sum, p) => sum + p.marketDataFee, 0),
-          totalInterestFees: positions.reduce((sum, p) => sum + p.interestFee, 0),
-          totalOtherFees: positions.reduce((sum, p) => sum + p.otherFees, 0),
-          totalCommissions: positions.reduce((sum, p) => sum + p.commissions, 0),
-          totalRebates: positions.reduce((sum, p) => sum + p.rebates, 0),
-          totalMiscFees: positions.reduce((sum, p) => sum + p.miscFees, 0),
-          positions,
-          summary,
-        };
-        
-        resolve(statementData);
-      } catch (err) {
-        console.error('PDF parsing error:', err);
-        reject(new Error(`PDF parse error: ${err instanceof Error ? err.message : 'Unknown error'}`));
-      }
-    };
-    
-    reader.onerror = () => {
-      reject(new Error('Failed to read PDF file'));
-    };
-    
-    reader.readAsArrayBuffer(file);
-  });
+  // Temporarily disable PDF parsing due to Next.js 15 compatibility issues
+  // This is a known issue with PDF.js and Next.js 15
+  throw new Error(
+    'PDF parsing is temporarily unavailable due to Next.js 15 compatibility issues with PDF.js.\n\n' +
+    'Please use one of these alternatives:\n\n' +
+    '1. **Copy/paste from PDF to Excel/CSV**:\n' +
+    '   - Open your Cobra PDF statement\n' +
+    '   - Select and copy the trading data\n' +
+    '   - Paste into Excel or Google Sheets\n' +
+    '   - Save as CSV and upload to the analyzer\n\n' +
+    '2. **Use an online PDF to CSV converter**:\n' +
+    '   - Upload your PDF to a converter like pdf24.org or ilovepdf.com\n' +
+    '   - Convert to CSV format\n' +
+    '   - Upload the resulting CSV file\n\n' +
+    '3. **Manual data entry**:\n' +
+    '   - Create a CSV with columns: Date, Symbol, Quantity, Price, Amount\n' +
+    '   - Enter your trading data manually\n' +
+    '   - Upload the CSV file\n\n' +
+    'We are working on a solution for PDF parsing with Next.js 15. Thank you for your patience!'
+  );
 }
 
 function parsePDFStructured(structuredData: any[], fullText: string): BorrowPosition[] {
