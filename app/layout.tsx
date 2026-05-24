@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Cobra Fee Analyzer",
-  description: "Analyze your Cobra Trading statements - borrow fees, locate costs, and trading patterns",
+  description: "Analyze your Cobra Trading - borrow fees, locate costs, and trading patterns",
 };
 
 export default function RootLayout({

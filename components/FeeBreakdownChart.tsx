@@ -7,6 +7,15 @@ import { formatCurrency } from "@/lib/utils";
 
 type FeeBreakdownChartProps = {
   statement: StatementData;
+  filteredData?: {
+    totalOvernightFees: number;
+    totalLocateCosts: number;
+    totalCommissions: number;
+    totalMiscFees: number;
+    totalMarketDataFees: number;
+    totalInterestIncome: number;
+    totalOtherFees: number;
+  };
 };
 
 const COLORS = {
@@ -14,49 +23,49 @@ const COLORS = {
   locateCosts: '#eab308', // yellow
 };
 
-export default function FeeBreakdownChart({ statement }: FeeBreakdownChartProps) {
+export default function FeeBreakdownChart({ statement, filteredData }: FeeBreakdownChartProps) {
     const data = [
       { 
         name: 'Overnight Fees', 
-        value: Math.round(statement.totalOvernightFees * 100) / 100, 
+        value: Math.round((filteredData?.totalOvernightFees ?? statement.totalOvernightFees) * 100) / 100, 
         color: COLORS.borrowFees,
-        formattedValue: formatCurrency(Math.round(statement.totalOvernightFees * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalOvernightFees ?? statement.totalOvernightFees) * 100) / 100)
       },
       { 
         name: 'Locate Costs', 
-        value: Math.round(statement.totalLocateCosts * 100) / 100, 
+        value: Math.round((filteredData?.totalLocateCosts ?? statement.totalLocateCosts) * 100) / 100, 
         color: COLORS.locateCosts,
-        formattedValue: formatCurrency(Math.round(statement.totalLocateCosts * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalLocateCosts ?? statement.totalLocateCosts) * 100) / 100)
       },
       { 
         name: 'Commissions', 
-        value: Math.round(statement.totalCommissions * 100) / 100, 
+        value: Math.round((filteredData?.totalCommissions ?? statement.totalCommissions) * 100) / 100, 
         color: '#f97316', // orange
-        formattedValue: formatCurrency(Math.round(statement.totalCommissions * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalCommissions ?? statement.totalCommissions) * 100) / 100)
       },
       { 
         name: 'Misc Fees', 
-        value: Math.round(statement.totalMiscFees * 100) / 100, 
+        value: Math.round((filteredData?.totalMiscFees ?? statement.totalMiscFees) * 100) / 100, 
         color: '#f59e0b', // amber
-        formattedValue: formatCurrency(Math.round(statement.totalMiscFees * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalMiscFees ?? statement.totalMiscFees) * 100) / 100)
       },
       { 
         name: 'Market Data', 
-        value: Math.round(statement.totalMarketDataFees * 100) / 100, 
+        value: Math.round((filteredData?.totalMarketDataFees ?? statement.totalMarketDataFees) * 100) / 100, 
         color: '#8b5cf6', // purple
-        formattedValue: formatCurrency(Math.round(statement.totalMarketDataFees * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalMarketDataFees ?? statement.totalMarketDataFees) * 100) / 100)
       },
       { 
         name: 'Interest', 
-        value: Math.round(statement.totalInterestFees * 100) / 100, 
+        value: Math.round((filteredData?.totalInterestIncome ?? statement.totalInterestIncome) * 100) / 100, 
         color: '#06b6d4', // cyan
-        formattedValue: formatCurrency(Math.round(statement.totalInterestFees * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalInterestIncome ?? statement.totalInterestIncome) * 100) / 100)
       },
       { 
         name: 'Other Fees', 
-        value: Math.round(statement.totalOtherFees * 100) / 100, 
+        value: Math.round((filteredData?.totalOtherFees ?? statement.totalOtherFees) * 100) / 100, 
         color: '#6b7280', // gray
-        formattedValue: formatCurrency(Math.round(statement.totalOtherFees * 100) / 100)
+        formattedValue: formatCurrency(Math.round((filteredData?.totalOtherFees ?? statement.totalOtherFees) * 100) / 100)
       },
     ].filter(item => item.value > 0);
 

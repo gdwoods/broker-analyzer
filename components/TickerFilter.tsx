@@ -143,7 +143,7 @@ export default function TickerFilter({ positions, onTickerFilterChange }: Ticker
                   const isSelected = selectedTickers.has(ticker);
                   const tickerPositions = positions.filter(p => p.symbol === ticker);
                   const totalFees = tickerPositions.reduce((sum, p) => 
-                    sum + p.overnightFee + p.locateCost + p.marketDataFee + p.interestFee + p.otherFees, 0
+                    sum + p.overnightFee + p.locateCost + p.marketDataFee + p.interestIncome + p.otherFees, 0
                   );
                   
                   return (

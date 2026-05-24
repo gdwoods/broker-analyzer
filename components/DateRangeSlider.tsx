@@ -13,6 +13,7 @@ interface DateRangeSliderProps {
 
 export default function DateRangeSlider({ positions, onDateRangeChange }: DateRangeSliderProps) {
   const [dateRange, setDateRange] = useState<[string, string]>(['', '']);
+  const [appliedDateRange, setAppliedDateRange] = useState<[string, string]>(['', '']);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Extract unique dates from positions
@@ -28,23 +29,25 @@ export default function DateRangeSlider({ positions, onDateRangeChange }: DateRa
     if (allDates.length > 0 && !isInitialized) {
       const startDate = minDate.toISOString().split('T')[0];
       const endDate = maxDate.toISOString().split('T')[0];
-      setDateRange([startDate, endDate]);
+      const fullRange: [string, string] = [startDate, endDate];
+      setDateRange(fullRange);
+      setAppliedDateRange(fullRange);
       setIsInitialized(true);
     }
   }, [allDates, minDate, maxDate, isInitialized]);
 
-  // Filter positions based on date range
+  // Filter positions based on applied date range
   useEffect(() => {
-    if (dateRange[0] && dateRange[1]) {
+    if (appliedDateRange[0] && appliedDateRange[1]) {
       const filtered = positions.filter(pos => {
         const posDate = new Date(pos.date);
-        const startDate = new Date(dateRange[0]);
-        const endDate = new Date(dateRange[1]);
+        const startDate = new Date(appliedDateRange[0]);
+        const endDate = new Date(appliedDateRange[1]);
         return posDate >= startDate && posDate <= endDate;
       });
       onDateRangeChange(filtered);
     }
-  }, [dateRange, positions, onDateRangeChange]);
+  }, [appliedDateRange, positions, onDateRangeChange]);
 
   const handleStartDateChange = (value: string) => {
     setDateRange([value, dateRange[1]]);
@@ -54,11 +57,17 @@ export default function DateRangeSlider({ positions, onDateRangeChange }: DateRa
     setDateRange([dateRange[0], value]);
   };
 
+  const applyDateRange = () => {
+    setAppliedDateRange(dateRange);
+  };
+
   const resetToFullRange = () => {
     if (minDate && maxDate) {
       const startDate = minDate.toISOString().split('T')[0];
       const endDate = maxDate.toISOString().split('T')[0];
-      setDateRange([startDate, endDate]);
+      const fullRange: [string, string] = [startDate, endDate];
+      setDateRange(fullRange);
+      setAppliedDateRange(fullRange);
     }
   };
 
@@ -82,9 +91,9 @@ export default function DateRangeSlider({ positions, onDateRangeChange }: DateRa
           Date Range Filter
         </CardTitle>
         <CardDescription>
-          Filter data by date range. Current range: {dateRange[0] && dateRange[1] && (
+          Filter data by date range. Applied range: {appliedDateRange[0] && appliedDateRange[1] && (
             <>
-              {formatDateForDisplay(dateRange[0])} - {formatDateForDisplay(dateRange[1])}
+              {formatDateForDisplay(appliedDateRange[0])} - {formatDateForDisplay(appliedDateRange[1])}
             </>
           )}
         </CardDescription>
@@ -124,22 +133,31 @@ export default function DateRangeSlider({ positions, onDateRangeChange }: DateRa
         <div className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
             Showing {positions.filter(pos => {
-              if (!dateRange[0] || !dateRange[1]) return true;
+              if (!appliedDateRange[0] || !appliedDateRange[1]) return true;
               const posDate = new Date(pos.date);
-              const startDate = new Date(dateRange[0]);
-              const endDate = new Date(dateRange[1]);
+              const startDate = new Date(appliedDateRange[0]);
+              const endDate = new Date(appliedDateRange[1]);
               return posDate >= startDate && posDate <= endDate;
             }).length} of {positions.length} transactions
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={resetToFullRange}
-            className="flex items-center gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset to Full Range
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={applyDateRange}
+              size="sm" 
+              className="flex items-center gap-2"
+            >
+              Apply Range
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={resetToFullRange}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset to Full Range
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
